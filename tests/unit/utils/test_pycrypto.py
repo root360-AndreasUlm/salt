@@ -1,8 +1,5 @@
-# -*- coding: utf-8 -*-
-
-from __future__ import absolute_import, print_function, unicode_literals
-
 import re
+import string
 
 import salt.utils.platform
 import salt.utils.pycrypto
@@ -52,7 +49,9 @@ class PycryptoTestCase(TestCase):
         for algorithm in methods:
             expected = self.expecteds[algorithm]
             ret = salt.utils.pycrypto.gen_hash(
-                crypt_salt=expected["salt"], password=self.passwd, algorithm=algorithm,
+                crypt_salt=expected["salt"],
+                password=self.passwd,
+                algorithm=algorithm,
             )
             self.assertEqual(ret, expected["hashed"])
 
@@ -75,7 +74,8 @@ class PycryptoTestCase(TestCase):
         default_algorithm = salt.utils.pycrypto.crypt.methods[0].name.lower()
         expected = self.expecteds[default_algorithm]
         ret = salt.utils.pycrypto.gen_hash(
-            crypt_salt=expected["salt"], password=self.passwd,
+            crypt_salt=expected["salt"],
+            password=self.passwd,
         )
         self.assertEqual(ret, expected["hashed"])
 
@@ -91,7 +91,9 @@ class PycryptoTestCase(TestCase):
         for algorithm in methods:
             expected = self.expecteds[algorithm]
             ret = salt.utils.pycrypto.gen_hash(
-                crypt_salt=expected["salt"], password=self.passwd, algorithm=algorithm,
+                crypt_salt=expected["salt"],
+                password=self.passwd,
+                algorithm=algorithm,
             )
             self.assertEqual(ret, expected["hashed"])
 
@@ -164,11 +166,75 @@ class PycryptoTestCase(TestCase):
                 pass
         log.warning.assert_called_with("Hash salt is too long for 'crypt' hash.")
 
+    @patch("salt.utils.pycrypto.HAS_RANDOM", True)
     def test_secure_password(self):
         """
         test secure_password
         """
         ret = salt.utils.pycrypto.secure_password()
-        check = re.compile(r"[!@#$%^&*()_=+]")
+        check_printable = re.compile(
+            r"[^{}]".format(
+                re.escape(
+                    string.ascii_lowercase
+                    + string.ascii_uppercase
+                    + string.digits
+                    + string.punctuation
+                )
+            )
+        )
+        check_whitespace = re.compile(r"[{}]".format(string.whitespace))
+        self.assertIsNone(check_printable.search(ret))
+        self.assertIsNone(check_whitespace.search(ret))
+        self.assertTrue(ret)
+        self.assertEqual(salt.utils.pycrypto.secure_password(length=1, chars="A"), "A")
+        self.assertEqual(len(salt.utils.pycrypto.secure_password(length=64)), 64)
+
+    @patch("salt.utils.pycrypto.HAS_RANDOM", True)
+    def test_secure_password_all_chars(self):
+        """
+        test secure_password
+        """
+        ret = salt.utils.pycrypto.secure_password(
+            lowercase=True,
+            uppercase=True,
+            digits=True,
+            punctuation=True,
+            whitespace=True,
+            printable=True,
+        )
+        check = re.compile(r"[^{}]".format(re.escape(string.printable)))
+        self.assertIsNone(check.search(ret))
+        self.assertTrue(ret)
+
+    @patch("salt.utils.pycrypto.HAS_RANDOM", False)
+    def test_secure_password_no_has_random(self):
+        """
+        test secure_password
+        """
+        ret = salt.utils.pycrypto.secure_password()
+        check_printable = re.compile(
+            r"[^{}]".format(
+                re.escape(
+                    string.ascii_lowercase
+                    + string.ascii_uppercase
+                    + string.digits
+                    + string.punctuation
+                )
+            )
+        )
+        check_whitespace = re.compile(r"[{}]".format(string.whitespace))
+        self.assertIsNone(check_printable.search(ret))
+        self.assertIsNone(check_whitespace.search(ret))
+        self.assertTrue(ret)
+        self.assertEqual(salt.utils.pycrypto.secure_password(length=1, chars="A"), "A")
+        self.assertEqual(len(salt.utils.pycrypto.secure_password(length=64)), 64)
+
+    @patch("salt.utils.pycrypto.HAS_RANDOM", False)
+    def test_secure_password_all_chars_no_has_random(self):
+        """
+        test secure_password
+        """
+        ret = salt.utils.pycrypto.secure_password(printable=True)
+        check = re.compile("[^{}]".format(re.escape(string.printable)))
         self.assertIsNone(check.search(ret))
         self.assertTrue(ret)
