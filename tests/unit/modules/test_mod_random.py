@@ -17,9 +17,7 @@ def _test_hashlib():
     except ImportError:
         return False
 
-    algorithms_attr_name = "algorithms_guaranteed"
-
-    if not hasattr(hashlib, algorithms_attr_name):
+    if not hasattr(hashlib, "algorithms_guaranteed"):
         return False
     else:
         return True
